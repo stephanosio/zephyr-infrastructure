@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-red
+  namespace: node-red
+  labels:
+    app: node-red
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-red
+  template:
+    metadata:
+      labels:
+        app: node-red
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: nodered
+        image: nodered/node-red:4.0.8
+        args: ["--settings", "/config/settings.js"]
+        env:
+        - name: NODE_OPTIONS
+          value: "--trace-warnings"
+        ports:
+        - containerPort: 1880
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          allowPrivilegeEscalation: false
+        resources:
+          limits:
+            memory: 1024Mi
+            cpu: 500m
+          requests:
+            memory: 512Mi
+            cpu: 250m
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 1880
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 1880
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: node-red-storage
+          mountPath: /data
+        - name: node-red-settings
+          mountPath: /config/settings.js
+          subPath: settings.js
+      volumes:
+      - name: node-red-storage
+        persistentVolumeClaim:
+          claimName: node-red-pvc
+      - name: node-red-settings
+        configMap:
+          name: node-red-settings
